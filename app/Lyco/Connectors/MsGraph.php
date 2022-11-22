@@ -13,24 +13,23 @@ use Microsoft\Graph\Graph;
 class MsGraph
 {
   private string $accessToken;
+  private Graph $graph;
 
   public function __construct()
   {
-
-    try {
-      $this->getAccessToken();
-    } catch (Exception|GuzzleException $e) {
-      echo 'There was an issue getting a MsGraph Access Token.';
-    }
+    $this->graph = new Graph();
+    $this->graph
+        ->setBaseUrl('https://graph.microsoft.com/')
+        ->setApiVersion('v1.0')
+        ->setAccessToken($this->getAccessToken());
 
   }
 
   /**
-   * @return string
    * @throws JsonException
    * @throws GuzzleException
    */
-  private function getAccessToken(): void
+  private function getAccessToken(): string
   {
     $guzzle = new Client();
     $url = 'https://login.microsoftonline.com/1c3cf8fd-8f09-48f3-915c-3cc89f4ebfc9/oauth2/token?api-version=v1.0';
@@ -50,29 +49,59 @@ class MsGraph
         512,
         JSON_THROW_ON_ERROR
     );
-    $this->accessToken = $token->access_token;
+    return $token->access_token;
   }
 
   /**
    * @throws GraphException
    * @throws GuzzleException
    */
-  public function listFilesInOneDriveFolder()
+  public function listFilesInOneDriveFolder(): array
   {
     //https://graph.microsoft.com/v1.0/users/65527d49-ffcd-4113-9df8-62901fc9bf84/drive/root/children
     //xelionreports-sp@lyco.co.uk = 65527d49-ffcd-4113-9df8-62901fc9bf84
 
-    $graph = new Graph();
-    $graph
-        ->setBaseUrl('https://graph.microsoft.com/')
-        ->setApiVersion('v1.0')
-        ->setAccessToken($this->accessToken);
-
-    $response = $graph->createRequest('GET', 'users/65527d49-ffcd-4113-9df8-62901fc9bf84/drive/root/children')
+    $response = $this->graph->createRequest('GET', '/users/65527d49-ffcd-4113-9df8-62901fc9bf84/drive/root/children/XelionReports/children/')
         ->execute();
 
     $status = $response->getStatus();
     $body = $response->getBody();
+
+    $listOfFiles = [];
+    foreach ($body['value'] as $item) {
+      if ($item['size'] > 0) {
+        $listOfFiles[$item['name']] = $item['@microsoft.graph.downloadUrl'];
+      }
+    }
+
+    print_r($body);
+    return $listOfFiles;
+  }
+
+  /**
+   * @throws GraphException
+   * @throws GuzzleException
+   */
+  public function downloadOneDriveFile(string $fileId, string $filename)
+  {
+    //https://graph.microsoft.com/v1.0/users/65527d49-ffcd-4113-9df8-62901fc9bf84/drive/root/children
+    //xelionreports-sp@lyco.co.uk = 65527d49-ffcd-4113-9df8-62901fc9bf84
+
+    $response = $this->graph->createRequest('GET', '/users/65527d49-ffcd-4113-9df8-62901fc9bf84/drive/items/' . $fileId . '?select=id,@microsoft.graph.downloadUrl')
+        ->execute();
+
+    $status = $response->getStatus();
+    $body = $response->getBody();
+    $downloadUrl = $body['@microsoft.graph.downloadUrl'];
+    $destination = "C:\\temp\\$filename";
+
+    $data = file_get_contents($downloadUrl);
+
+    if (file_put_contents($destination, $data)) {
+      echo "File downloaded successfully";
+    } else {
+      echo "File downloading failed.";
+    }
     print_r($body);
   }
 }
