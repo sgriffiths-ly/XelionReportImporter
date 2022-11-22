@@ -1,0 +1,18 @@
+{
+  "require": {
+    "guzzlehttp/guzzle": "^7.0",
+    "ext-json": "*",
+    "ext-pdo": "*",
+    "microsoft/microsoft-graph": "^1.5"
+  }
+,
+  "require-dev": {
+    "roave/security-advisories": "dev-latest"
+  },
+
+  "autoload": {
+    "psr-4": {
+      "Lyco\\": "app/Lyco"
+    }
+  }
+}
