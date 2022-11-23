@@ -24,68 +24,82 @@ class SqlServer
   }
 
 
-  public function getOrders(): array
-  {
-    $data = [];
-    $sql = 'SELECT * FROM [3dBinPackingOrders] WHERE NOT EXISTS(SELECT DISTINCT [order_no] FROM [3dBinPackingPackAShipmentToteResult])';
-    try {
-      $stmt = $this->pdo->prepare($sql);
-      $stmt->execute([]);
-      while ($row = $stmt->fetch()) {
-        $data[$row->order_no][] = $row;
-      }
-    } catch (Exception $e) {
-      error_log('There was an issue retrieving orders from the database.' . PHP_EOL . $e->getMessage() . PHP_EOL . 'SQL: ' . $sql . PHP_EOL);
-    }
-
-    return $data;
-  }
-
-
-  public function writePackAShipmentResult(string $orderNo, string $responseBody, string $numberOfTotesUsed, string $numberNotPacked): bool
+  public function addData($date, $dataRow): bool
   {
     $success = false;
-    $sql = 'INSERT INTO [3dBinPackingPackAShipmentToteResult] 
-    ([order_no],[result_data],[tote_boxes_used],[items_not_packed]) 
-    VALUES (:orderNo, :resultData, :toteBoxesUsed, :itemsNotPacked)';
+    $sql = /** @lang TSQL */
+        'DECLARE @date date = :date
+,@phone_line varchar(50) = :phone_line
+,@inbound_average_answer_time varchar(10) = :inbound_average_answer_time
+,@inbound_number_of_calls int = :inbound_number_of_calls
+,@inbound_answered int = :inbound_answered
+,@inbound_missed int = :inbound_missed
+,@inbound_fallback int = :inbound_fallback
+,@inbound_total_duration varchar(10) = :inbound_total_duration
+,@inbound_average_duration varchar(10) = :inbound_average_duration
+,@inbound_pc_answered decimal(5, 2) = :inbound_pc_answered
+,@inbound_pc_missed decimal(5, 2) = :inbound_pc_missed
+,@outbound_number_of_calls int = :outbound_number_of_calls
+,@outbound_answered int = :outbound_answered
+,@outbound_total_duration varchar(10) = :outbound_total_duration
+,@outbound_average_duration varchar(10) = :outbound_average_duration
+,@total_number_of_calls int = :total_number_of_calls
+,@total_total_duration varchar(10) = :total_total_duration
+,@total_average_duration varchar(10) = :total_average_duration;
+
+IF EXISTS(SELECT [date], [phone_line] FROM Xelion_External_Calls_By_Phoneline WHERE [date] = @date AND [phone_line] = @phone_line)
+	UPDATE Xelion_External_Calls_By_Phoneline SET [date]= @date
+,[phone_line]=@phone_line
+,[inbound_average_answer_time]=@inbound_average_answer_time
+,[inbound_number_of_calls]=@inbound_number_of_calls
+,[inbound_answered]=@inbound_answered
+,[inbound_missed]=@inbound_missed
+,[inbound_fallback]=@inbound_fallback
+,[inbound_total_duration]= @inbound_total_duration
+,[inbound_average_duration]=@inbound_average_duration
+,[inbound_%_answered] =@inbound_pc_answered
+,[inbound_%_missed]=@inbound_pc_missed
+,[outbound_number_of_calls]=@outbound_number_of_calls
+,[outbound_answered]=@outbound_answered
+,[outbound_total_duration]=@outbound_total_duration
+,[outbound_average_duration]=@outbound_average_duration
+,[total_number_of_calls]=@total_number_of_calls
+,[total_total_duration]=@total_total_duration
+,[total_average_duration]=@total_average_duration
+    WHERE [date]=@date AND [phone_line]=@phone_line
+ELSE
+INSERT INTO Xelion_External_Calls_By_Phoneline (
+[date],[phone_line],[inbound_average_answer_time],[inbound_number_of_calls],[inbound_answered],[inbound_missed],[inbound_fallback],[inbound_total_duration],[inbound_average_duration],[inbound_%_answered] ,[inbound_%_missed],[outbound_number_of_calls],[outbound_answered],[outbound_total_duration],[outbound_average_duration],[total_number_of_calls],[total_total_duration],[total_average_duration]
+)VALUES (
+@date,@phone_line,@inbound_average_answer_time,@inbound_number_of_calls,@inbound_answered,@inbound_missed,@inbound_fallback,@inbound_total_duration,@inbound_average_duration,@inbound_pc_answered,@inbound_pc_missed,@outbound_number_of_calls,@outbound_answered,@outbound_total_duration,@outbound_average_duration,@total_number_of_calls,@total_total_duration,@total_average_duration)
+
+';
     try {
       $stmt = $this->pdo->prepare($sql);
-      $success = $stmt->execute(['orderNo' => $orderNo, 'resultData' => $responseBody, 'toteBoxesUsed' => $numberOfTotesUsed, 'itemsNotPacked' => $numberNotPacked]);
+      $success = $stmt->execute([
+          'date' => $date,
+          'phone_line' => $dataRow[0],
+          'inbound_average_answer_time' => $dataRow[1],
+          'inbound_number_of_calls' => $dataRow[2],
+          'inbound_answered' => $dataRow[3],
+          'inbound_missed' => $dataRow[4],
+          'inbound_fallback' => $dataRow[5],
+          'inbound_total_duration' => $dataRow[6],
+          'inbound_average_duration' => $dataRow[7],
+          'inbound_pc_answered' => $dataRow[8],
+          'inbound_pc_missed' => $dataRow[9],
+          'outbound_number_of_calls' => $dataRow[10],
+          'outbound_answered' => $dataRow[11],
+          'outbound_total_duration' => $dataRow[12],
+          'outbound_average_duration' => $dataRow[13],
+          'total_number_of_calls' => $dataRow[14],
+          'total_total_duration' => $dataRow[15],
+          'total_average_duration' => $dataRow[16],
+      ]);
     } catch (Exception $e) {
-      error_log('There was an issue writing a PackAShipment result to the database. Order: ' . $orderNo . PHP_EOL . $e->getMessage() . PHP_EOL . 'SQL: ' . $sql . PHP_EOL);
+      error_log('There was an issue adding data to the database.' . PHP_EOL . $e->getMessage() . PHP_EOL . 'SQL: ' . $sql . PHP_EOL);
     }
-    return $success;
-  }
 
-  public function addComLogRequest(string $orderNo, string $endpoint, string $requestData): ?string
-  {
-    $rowId = null;
-    $sql = 'INSERT INTO [3dBinPackingComLog] ([order_no], [endpoint], [request_datetime], [request_data]) 
-                    OUTPUT INSERTED.row_id
-                    VALUES (:order_no, :endpoint, GETDATE(), :request_data)';
-    try {
-      $stmt = $this->pdo->prepare($sql);
-      $stmt->execute(['order_no' => $orderNo, 'endpoint' => $endpoint, 'request_data' => $requestData]);
-      while ($row = $stmt->fetch()) {
-        $rowId = $row->row_id;
-      }
-    } catch (Exception $e) {
-      error_log('There was an issue writing a ComLog Request to the database. Order: ' . $orderNo . PHP_EOL . $e->getMessage() . PHP_EOL . 'SQL: ' . $sql . PHP_EOL);
-    }
-    return $rowId;
-
-  }
-
-  public function addComLogResponse(int $rowId, int $httpCode, string $responseData): bool
-  {
-    $success = false;
-    $sql = 'UPDATE [3dBinPackingComLog] SET [response_http_code]=:response_http_code, [response_datetime]=GETDATE(), [response_data]= :response_data WHERE [row_id] = :row_id';
-    try {
-      $stmt = $this->pdo->prepare($sql);
-      $success = $stmt->execute(['response_http_code' => $httpCode, 'response_data' => $responseData, 'row_id' => $rowId]);
-    } catch (Exception $e) {
-      error_log('There was an issue writing a ComLog Response to the database.' . PHP_EOL . $e->getMessage() . PHP_EOL . 'SQL: ' . $sql . PHP_EOL);
-    }
     return $success;
   }
 
