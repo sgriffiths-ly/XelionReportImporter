@@ -9,9 +9,9 @@ $downloadFolder = "\\\\lyco_fs01\\shared\\Information Technology\\Data uploads\\
 $archiveFolder = "\\\\lyco_fs01\\shared\\Information Technology\\Data uploads\\Xelion Reports\\Archive\\";
 $reportFileNameFragment = 'Daily Phoneline Report For SQL';
 $sql = new SqlServer();
-$errors=[];
+$msGraph = new MsGraph();
 
-M365Part($downloadFolder, $reportFileNameFragment);
+M365Part($msGraph, $downloadFolder, $reportFileNameFragment);
 
 //loop through files on shared drive, process them, archive them
 $dir = new DirectoryIterator($downloadFolder);
@@ -48,15 +48,9 @@ function processCsv(string $path, SqlServer $sql)
 }
 
 
-/**
- * @param string $downloadFolder
- * @return void
- * @throws \GuzzleHttp\Exception\GuzzleException
- * @throws \Microsoft\Graph\Exception\GraphException
- */
-function M365Part(string $downloadFolder, string $reportFileNameFragment): void
+function M365Part(MsGraph $msGraph, string $downloadFolder, string $reportFileNameFragment): void
 {
-  $msGraph = new MsGraph();
+
 
 //list files in OneDrive
   $files = $msGraph->listFilesInOneDriveFolder();
@@ -66,7 +60,7 @@ function M365Part(string $downloadFolder, string $reportFileNameFragment): void
     if (strpos($file['name'], $reportFileNameFragment) !== false) {
       if (file_put_contents($downloadFolder . $file['name'], file_get_contents($file['downloadUrl']))) {
         echo "{$file['name']} downloaded successfully";
-        $moved = $msGraph->moveOneDriveFileToProcessedFolder($file['id'], $file['name']);
+        $msGraph->moveOneDriveFileToProcessedFolder($file['id'], $file['name']);
       } else {
         echo "{$file['name']} downloading failed.";
       }

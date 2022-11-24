@@ -7,21 +7,28 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;
 use Lyco\Etc\Credentials;
-use Microsoft\Graph\Exception\GraphException;
 use Microsoft\Graph\Graph;
 
 class MsGraph
 {
-  private string $accessToken;
+  private const TENANT_ID = '1c3cf8fd-8f09-48f3-915c-3cc89f4ebfc9';
+  private const XELION_USER_ID = '65527d49-ffcd-4113-9df8-62901fc9bf84'; //xelionreports-sp@lyco.co.uk
   private Graph $graph;
+  public bool $failedToLoad = false;
 
   public function __construct()
   {
-    $this->graph = new Graph();
-    $this->graph
-        ->setBaseUrl('https://graph.microsoft.com/')
-        ->setApiVersion('v1.0')
-        ->setAccessToken($this->getAccessToken());
+    try {
+
+      $this->graph = new Graph();
+      $this->graph
+          ->setBaseUrl('https://graph.microsoft.com/')
+          ->setApiVersion('v1.0')
+          ->setAccessToken($this->getAccessToken());
+    } catch (Exception|GuzzleException $e) {
+      $this->failedToLoad = true;
+      error_log('Unable to initialise MS Graph' . PHP_EOL . $e->getMessage());
+    }
 
   }
 
@@ -32,7 +39,7 @@ class MsGraph
   private function getAccessToken(): string
   {
     $guzzle = new Client();
-    $url = 'https://login.microsoftonline.com/1c3cf8fd-8f09-48f3-915c-3cc89f4ebfc9/oauth2/token?api-version=v1.0';
+    $url = 'https://login.microsoftonline.com/' . self::TENANT_ID . '/oauth2/token?api-version=v1.0';
     $token = json_decode(
         $guzzle->post(
             $url,
@@ -52,51 +59,44 @@ class MsGraph
     return $token->access_token;
   }
 
-  /**
-   * @throws GraphException
-   * @throws GuzzleException
-   */
+
   public function listFilesInOneDriveFolder(): array
   {
-    //https://graph.microsoft.com/v1.0/users/65527d49-ffcd-4113-9df8-62901fc9bf84/drive/root/children
-    //xelionreports-sp@lyco.co.uk = 65527d49-ffcd-4113-9df8-62901fc9bf84
-
-    $response = $this->graph->createRequest('GET', '/users/65527d49-ffcd-4113-9df8-62901fc9bf84/drive/root/children/XelionReports/children/')
-        ->execute();
-
-    $status = $response->getStatus();
-    $body = $response->getBody();
-
     $listOfFiles = [];
-    foreach ($body['value'] as $item) {
-      if ($item['size'] > 0) {
-        $listOfFiles[] = ['name' => $item['name'], 'id' => $item['id'], 'downloadUrl' => $item['@microsoft.graph.downloadUrl']];
-      }
-    }
+    try {
+      $response = $this->graph->createRequest('GET', '/users/' . self::XELION_USER_ID . '/drive/root/children/XelionReports/children/')
+          ->execute();
 
-    //print_r($body);
+      //$status = $response->getStatus();
+      $body = $response->getBody();
+
+      foreach ($body['value'] as $item) {
+        if ($item['size'] > 0) {
+          $listOfFiles[] = ['name' => $item['name'], 'id' => $item['id'], 'downloadUrl' => $item['@microsoft.graph.downloadUrl']];
+        }
+      }
+    } catch (Exception|GuzzleException $e) {
+      error_log('Unable to list files in OneDrive folder' . PHP_EOL . $e->getMessage());
+    }
     return $listOfFiles;
   }
 
 
-  /**
-   * @throws GraphException
-   * @throws GuzzleException
-   */
-  public function moveOneDriveFileToProcessedFolder(string $fileId, string $filename)
+  public function moveOneDriveFileToProcessedFolder(string $fileId, string $filename): bool
   {
-    //https://graph.microsoft.com/v1.0/users/65527d49-ffcd-4113-9df8-62901fc9bf84/drive/root/children
-    //xelionreports-sp@lyco.co.uk = 65527d49-ffcd-4113-9df8-62901fc9bf84
+    $status = null;
+    try {
+      $response = $this->graph->createRequest('PATCH', '/users/' . self::XELION_USER_ID . '/drive/items/' . $fileId)
+          ->attachBody('{"parentReference": {"id": "01OY3CATLQSTIB4734ZNBIL5KQ4TVJWWH7"}, "name": "' . $filename . '"}')
+          ->execute();
 
-    $response = $this->graph->createRequest('PATCH', '/users/65527d49-ffcd-4113-9df8-62901fc9bf84/drive/items/' . $fileId)
-        ->attachBody('{"parentReference": {"id": "01OY3CATLQSTIB4734ZNBIL5KQ4TVJWWH7"}, "name": "' . $filename . '"}')
-        ->execute();
+      $status = $response->getStatus();
+      //$body = $response->getBody();
+    } catch (Exception|GuzzleException $e) {
+      error_log('Unable to move a file in OneDrive folder' . PHP_EOL . 'Filename: ' . $filename . PHP_EOL . $e->getMessage());
+    }
 
-    $status = $response->getStatus();
-    $body = $response->getBody();
-    print_r($body);
-
-    return $status === 200;
+    return $status === '200';
   }
 
 
