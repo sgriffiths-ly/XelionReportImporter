@@ -11,6 +11,9 @@ $reportFileNameFragment = 'Daily Phoneline Report For SQL';
 $sql = new SqlServer();
 $msGraph = new MsGraph();
 
+if ($msGraph->failedToLoad) {
+  exit(1);
+}
 M365Part($msGraph, $downloadFolder, $reportFileNameFragment);
 
 //loop through files on shared drive, process them, archive them
