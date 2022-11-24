@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="131583d7-f060-4b67-a190-55bb54c36249" name="LYCO-APP" url="http://localhost">
+        <fileTransfer mountedRoot="W:\XelionReportImporter" accessType="MOUNT" port="0" />
+      </webServer>
+    </option>
+  </component>
+</project>

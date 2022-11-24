@@ -1,16 +1,17 @@
 <?php
 
-require './app/al.php';
+require_once __DIR__ . '/vendor/autoload.php';
 
 use Lyco\Connectors\MsGraph;
 use Lyco\Connectors\SqlServer;
 
-$downloadFolder = "J:\\Information Technology\\Data uploads\\Xelion Reports\\";
-$archiveFolder = "J:\\Information Technology\\Data uploads\\Xelion Reports\\Archive\\";
-$reportFileNameFragment = 'SG Test 1';
+$downloadFolder = "\\\\lyco_fs01\\shared\\Information Technology\\Data uploads\\Xelion Reports\\";
+$archiveFolder = "\\\\lyco_fs01\\shared\\Information Technology\\Data uploads\\Xelion Reports\\Archive\\";
+$reportFileNameFragment = 'Daily Phoneline Report For SQL';
 $sql = new SqlServer();
+$errors=[];
 
-//M365Part($downloadDestinationFolder);
+M365Part($downloadFolder, $reportFileNameFragment);
 
 //loop through files on shared drive, process them, archive them
 $dir = new DirectoryIterator($downloadFolder);
@@ -21,7 +22,7 @@ foreach ($dir as $fileInfo) {
     processCsv($downloadFolder . $fileInfo->getFilename(), $sql);
 
     //rename to move file to Archive folder.
-    //rename($downloadFolder . $fileInfo->getFilename(), $archiveFolder . $fileInfo->getFilename());
+    rename($downloadFolder . $fileInfo->getFilename(), $archiveFolder . $fileInfo->getFilename());
   }
 }
 
@@ -53,7 +54,7 @@ function processCsv(string $path, SqlServer $sql)
  * @throws \GuzzleHttp\Exception\GuzzleException
  * @throws \Microsoft\Graph\Exception\GraphException
  */
-function M365Part(string $downloadFolder): void
+function M365Part(string $downloadFolder, string $reportFileNameFragment): void
 {
   $msGraph = new MsGraph();
 
@@ -62,11 +63,13 @@ function M365Part(string $downloadFolder): void
 
 //download files from OneDrive and move them to Processed folder on OneDrive
   foreach ($files as $file) {
-    if (file_put_contents($downloadFolder . $file['name'], file_get_contents($file['downloadUrl']))) {
-      echo "{$file['name']} downloaded successfully";
-      $moved = $msGraph->moveOneDriveFileToProcessedFolder($file['id'], $file['name']);
-    } else {
-      echo "{$file['name']} downloading failed.";
+    if (strpos($file['name'], $reportFileNameFragment) !== false) {
+      if (file_put_contents($downloadFolder . $file['name'], file_get_contents($file['downloadUrl']))) {
+        echo "{$file['name']} downloaded successfully";
+        $moved = $msGraph->moveOneDriveFileToProcessedFolder($file['id'], $file['name']);
+      } else {
+        echo "{$file['name']} downloading failed.";
+      }
     }
   }
 }
