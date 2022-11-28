@@ -5,6 +5,9 @@
       <webServer id="131583d7-f060-4b67-a190-55bb54c36249" name="LYCO-APP" url="http://localhost">
         <fileTransfer mountedRoot="W:\XelionReportImporter" accessType="MOUNT" port="0" />
       </webServer>
+      <webServer id="325523c8-c4be-4df6-9ccd-5a0bd65a2bad" name="LYCO-WEB" url="http://localhost">
+        <fileTransfer mountedRoot="X:\XelionReportImporter" accessType="MOUNT" port="0" />
+      </webServer>
     </option>
   </component>
 </project>

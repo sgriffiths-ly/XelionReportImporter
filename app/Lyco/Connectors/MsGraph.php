@@ -71,7 +71,8 @@ class MsGraph
       $body = $response->getBody();
 
       foreach ($body['value'] as $item) {
-        if ($item['size'] > 0) {
+        //if item is a file not folder
+        if (isset($item['file'])) {
           $listOfFiles[] = ['name' => $item['name'], 'id' => $item['id'], 'downloadUrl' => $item['@microsoft.graph.downloadUrl']];
         }
       }

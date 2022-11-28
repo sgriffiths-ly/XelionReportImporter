@@ -62,10 +62,10 @@ function M365Part(MsGraph $msGraph, string $downloadFolder, string $reportFileNa
   foreach ($files as $file) {
     if (strpos($file['name'], $reportFileNameFragment) !== false) {
       if (file_put_contents($downloadFolder . $file['name'], file_get_contents($file['downloadUrl']))) {
-        echo "{$file['name']} downloaded successfully";
+        echo "{$file['name']} downloaded successfully." . PHP_EOL;
         $msGraph->moveOneDriveFileToProcessedFolder($file['id'], $file['name']);
       } else {
-        echo "{$file['name']} downloading failed.";
+        echo "{$file['name']} downloading failed." . PHP_EOL;
       }
     }
   }
